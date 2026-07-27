@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<title>timezone — 时区换算</title>
+<meta name="description" content="外媒发稿时间换算到本地，含夏令时判断，可同时比对多个新闻中心。全部在浏览器本地运行。" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <a class="back" href="https://icgma.github.io/newsroom-kit/" title="返回工具箱">
+        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M10.3 3.3 5.6 8l4.7 4.7 1.4-1.4L8.4 8l3.3-3.3-1.4-1.4Z"/></svg>
+      </a>
+      <span class="dot" aria-hidden="true"></span>
+      <span class="wordmark">timezone</span>
+      <span class="tag">时区换算</span>
+    </div>
+    <div class="topbar-right">
+      <span class="privacy" title="所有换算都在你的浏览器里完成">
+        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M8 1 2 3v5c0 4 2.5 6.5 6 7.5 3.5-1 6-3.5 6-7.5V3L8 1Zm0 2 4 1.3v3.7c0 3-1.8 4.9-4 5.6-2.2-.7-4-2.6-4-5.6V4.3L8 3Z"/></svg>
+        本地运行
+      </span>
+      <button class="theme-toggle" id="themeToggle" title="切换主题">
+        <svg class="ico-moon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.5 2A6 6 0 0 0 8 13.9 6 6 0 0 1 6.5 2Zm2.8-.9a7.5 7.5 0 1 0 5.6 9.3 6 6 0 0 1-5.6-9.3Z"/></svg>
+        <svg class="ico-sun" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-8.5V.8m0 14.4v-1.7m3.9-9.6 1.2-1.2M2.9 13.1l1.2-1.2m0-7.8L2.9 2.9m10.2 10.2-1.2-1.2M13.5 8h1.7M.8 8h1.7"/></svg>
+        <span id="themeLabel">浅色</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="tz-main">
+    <section class="tz-source">
+      <div class="tz-source-head">
+        <h1>把这个时间</h1>
+        <p>粘贴外媒稿件里的时间，或直接输入时间戳。</p>
+      </div>
+
+      <div class="tz-inputs">
+        <label class="field field-grow">
+          <span class="field-label">原始时间</span>
+          <input type="text" id="rawInput" spellcheck="false" autocomplete="off"
+                 placeholder="2026-07-27 14:30 或 1753626600 或 2026-07-27T14:30Z" />
+        </label>
+        <label class="field">
+          <span class="field-label">来源时区</span>
+          <select id="srcZone"></select>
+        </label>
+        <button class="btn" id="nowBtn" title="填入当前时间">现在</button>
+      </div>
+
+      <div class="parsed" id="parsed">跟随当前时间</div>
+
+      <div class="tz-abs">
+        <div class="abs-row">
+          <span class="abs-key">Unix</span>
+          <span class="abs-val mono" id="unixOut">—</span>
+          <button class="iconbtn" data-act="copy-unix" title="复制时间戳">复制</button>
+        </div>
+        <div class="abs-row">
+          <span class="abs-key">ISO 8601</span>
+          <span class="abs-val mono" id="isoOut">—</span>
+          <button class="iconbtn" data-act="copy-iso" title="复制 ISO 时间">复制</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="tz-results">
+      <div class="tz-results-head">
+        <h2>换算结果</h2>
+        <div class="tz-add">
+          <select id="addZone" aria-label="添加时区"></select>
+          <button class="btn btn-sm btn-ghost" id="resetBtn" title="恢复默认时区">重置</button>
+        </div>
+      </div>
+      <div class="zone-list" id="zoneList"></div>
+      <p class="tz-note">
+        标注 <span class="dst-pill">夏令时</span> 的地区当前处于夏令时，与冬季相差一小时——
+        换算跨季度的旧稿时尤其要留意。
+      </p>
+    </section>
+
+    <div class="statusbar">
+      <span id="status" class="status ready">就绪</span>
+      <span class="hint" id="hint"></span>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-meta">
+      <span>Built with <strong>GLM-5.2</strong></span>
+      <span class="sep desktop-only">·</span>
+      <span class="desktop-only">作者 <span class="footer-author">icgma</span></span>
+      <span class="sep">·</span>
+      <a href="https://github.com/icgma/timezone" target="_blank" rel="noopener">源码</a>
+    </div>
+    <div class="footer-meta">
+      <span class="desktop-only">时区数据来自浏览器 Intl · 本地运行</span>
+    </div>
+  </footer>
+</div>
+<script src="tzmath.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
