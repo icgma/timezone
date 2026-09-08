@@ -19,26 +19,34 @@
     return f;
   }
 
+
+  function safeUTC(y, m, d, h=0, min=0, s=0) {
+    const t = new Date(Date.UTC(y, m, d, h, min, s));
+    if (y >= 0 && y <= 99) t.setUTCFullYear(y);
+    return t.getTime();
+  }
+
   // 某时刻在某时区的 UTC 偏移（毫秒）
   function offsetMs(instant, tz) {
     const p = fmt(tz, {
       year: "numeric", month: "2-digit", day: "2-digit",
       hour: "2-digit", minute: "2-digit", second: "2-digit",
-      hour12: false,
+      hour12: false, era: "short",
     }).formatToParts(instant);
 
     const g = {};
     for (const { type, value } of p) if (type !== "literal") g[type] = value;
+    if (g.era === "BC") g.year = -(Number(g.year) - 1);
     // hour 在 hour12:false 下可能是 "24"，代表午夜
     const hour = g.hour === "24" ? 0 : Number(g.hour);
-    const asUTC = Date.UTC(Number(g.year), Number(g.month) - 1, Number(g.day), hour, Number(g.minute), Number(g.second));
+    const asUTC = safeUTC(Number(g.year), Number(g.month) - 1, Number(g.day), hour, Number(g.minute), Number(g.second));
     // 抹掉毫秒再比，避免残差
     return asUTC - Math.floor(instant / 1000) * 1000;
   }
 
   // 墙上时间 -> 绝对时刻。迭代两次覆盖夏令时边界。
   function wallToInstant(wall, tz) {
-    const naive = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second || 0);
+    const naive = safeUTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second || 0);
     let guess = naive - offsetMs(naive, tz);
     const check = offsetMs(guess, tz);
     const corrected = naive - check;
@@ -58,7 +66,7 @@
 
   // 该墙上时间是否重复出现（夏令时回拨）
   function isAmbiguous(wall, tz) {
-    const naive = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second || 0);
+    const naive = safeUTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second || 0);
     const a = naive - offsetMs(naive - 86400000, tz); // 用前一天的偏移
     const b = naive - offsetMs(naive + 86400000, tz); // 用后一天的偏移
     if (a === b) return false;
@@ -72,10 +80,11 @@
     const p = fmt(tz, {
       year: "numeric", month: "2-digit", day: "2-digit",
       hour: "2-digit", minute: "2-digit", second: "2-digit",
-      weekday: "short", hour12: false,
+      weekday: "short", hour12: false, era: "short",
     }).formatToParts(instant);
     const g = {};
     for (const { type, value } of p) if (type !== "literal") g[type] = value;
+    if (g.era === "BC") g.year = -(Number(g.year) - 1);
     return {
       year: Number(g.year), month: Number(g.month), day: Number(g.day),
       hour: g.hour === "24" ? 0 : Number(g.hour),
@@ -100,8 +109,8 @@
   // 是否处于夏令时：与该年 1 月/7 月的最小偏移比较
   function isDST(instant, tz) {
     const y = instantToWall(instant, tz).year;
-    const jan = offsetMs(Date.UTC(y, 0, 15), tz);
-    const jul = offsetMs(Date.UTC(y, 6, 15), tz);
+    const jan = offsetMs(safeUTC(y, 0, 15), tz);
+    const jul = offsetMs(safeUTC(y, 6, 15), tz);
     if (jan === jul) return false;
     return offsetMs(instant, tz) === Math.max(jan, jul);
   }
@@ -110,16 +119,30 @@
   function dayDelta(instant, tz, baseTz) {
     const a = instantToWall(instant, tz);
     const b = instantToWall(instant, baseTz);
-    const da = Date.UTC(a.year, a.month - 1, a.day);
-    const db = Date.UTC(b.year, b.month - 1, b.day);
+    const da = safeUTC(a.year, a.month - 1, a.day);
+    const db = safeUTC(b.year, b.month - 1, b.day);
     return Math.round((da - db) / 86400000);
   }
 
-  const pad = (n) => String(n).padStart(2, "0");
+  // 校验日期有效性，防止如 2-30，4-31 或非闰年 2-29 等静默漂移
+  function isValidWall(w) {
+    if (w.month < 1 || w.month > 12 || w.day < 1 || w.day > 31 || w.hour < 0 || w.hour > 23 || w.minute < 0 || w.minute > 59) return false;
+    const t = new Date(safeUTC(w.year, w.month - 1, w.day));
+    let y = t.getUTCFullYear();
+    if (w.year >= 0 && w.year <= 99) {
+       const probe = new Date(safeUTC(w.year, w.month - 1, w.day));
+       probe.setUTCFullYear(w.year);
+       y = probe.getUTCFullYear();
+    }
+    return y === w.year && t.getUTCMonth() === w.month - 1 && t.getUTCDate() === w.day;
+  }
+
+  const pad = (n, len=2) => String(n).padStart(len, "0");
 
   function fmtWall(w, withSec) {
     const t = `${pad(w.hour)}:${pad(w.minute)}` + (withSec ? `:${pad(w.second)}` : "");
-    return { date: `${w.year}-${pad(w.month)}-${pad(w.day)}`, time: t, weekday: w.weekday };
+    const y = w.year < 0 ? `-${pad(Math.abs(w.year), 4)}` : pad(w.year, 4);
+    return { date: `${y}-${pad(w.month)}-${pad(w.day)}`, time: t, weekday: w.weekday };
   }
 
   // 解析用户输入：ISO 8601 / Unix 时间戳 / 常见新闻稿写法
@@ -162,7 +185,7 @@
 
   const API = {
     offsetMs, wallToInstant, instantToWall, offsetLabel, abbr, isDST,
-    dayDelta, fmtWall, parseInput, isGap, isAmbiguous, pad,
+    dayDelta, fmtWall, parseInput, isGap, isAmbiguous, pad, isValidWall,
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = API;

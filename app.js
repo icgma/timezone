@@ -159,7 +159,7 @@
       wall = p.wall;
     }
 
-    if (wall.month < 1 || wall.month > 12 || wall.day < 1 || wall.day > 31 || wall.hour > 23 || wall.minute > 59) {
+    if (!T.isValidWall(wall)) {
       els.parsed.textContent = "日期或时间超出范围";
       els.parsed.className = "parsed bad";
       setStatus("error", "数值无效");

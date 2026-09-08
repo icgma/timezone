@@ -118,5 +118,17 @@ eq("纽约冬季缩写", T.abbr(Date.UTC(2026, 0, 15, 17), "America/New_York"), 
   eq("自身为 0", T.dayDelta(inst, "Asia/Shanghai", "Asia/Shanghai"), "0");
 }
 
+
+
+
+// ---- 10. Fixes verification (Years 0-99, padding, BC era, invalid dates) ----
+eq("Year 24 parse", T.parseInput("0024-07-27 14:30").wall.year, 24);
+eq("Year 24 offset ms", T.offsetMs(T.wallToInstant({ year: 24, month: 7, day: 27, hour: 14, minute: 30 }, "UTC"), "UTC"), 0);
+eq("Year -5 offset ms", T.offsetMs(T.wallToInstant({ year: -5, month: 1, day: 1, hour: 12, minute: 0 }, "UTC"), "UTC"), 0);
+eq("Year -24 padding", T.fmtWall({ year: -24, month: 1, day: 1, hour: 12, minute: 0, second: 0, weekday: "Mon" }, true).date, "-0024-01-01");
+eq("isValidWall strict fail (Feb 30)", T.isValidWall({year: 2026, month: 2, day: 30, hour: 12, minute: 0}), false);
+eq("isValidWall strict pass (Feb 28)", T.isValidWall({year: 2026, month: 2, day: 28, hour: 12, minute: 0}), true);
+eq("isValidWall strict pass (Leap Feb 29)", T.isValidWall({year: 2024, month: 2, day: 29, hour: 12, minute: 0}), true);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
